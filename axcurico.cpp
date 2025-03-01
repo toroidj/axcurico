@@ -7,7 +7,7 @@
 #define DEBUGINFO 0
 
 // Susie Plug-in 関連の定義 ---------------------------------------------------
-//-------------------------------------- DLL 定数
+// エラー定義
 #define SUSIEERROR_NOERROR       0
 #define SUSIEERROR_NOTSUPPORT   -1
 #define SUSIEERROR_USERCANCEL    1
@@ -16,55 +16,66 @@
 #define SUSIEERROR_EMPTYMEMORY   4
 #define SUSIEERROR_FAULTMEMORY   5
 #define SUSIEERROR_FAULTREAD     6
-#define SUSIEERROR_RESERVED      7
+#define SUSIEERROR_RESERVED      7 // Susie 内部では Window 関係
 #define SUSIEERROR_INTERNAL      8
+#define SUSIEERROR_FILEWRITE     9 // Susie 内部で使用
+#define SUSIEERROR_EOF           10 // Susie 内部で使用
 
-typedef ULONG_PTR susie_time_t;
-//-------------------------------------- DLL 構造体
-#pragma pack(push, 1)
-typedef struct PictureInfo{
-	long	left, top;	// 画像を展開する位置
-	long	width;	// 画像の幅(pixel)
-	long	height;	// 画像の高さ(pixel)
-	WORD	x_density;	// 画素の水平方向密度
-	WORD	y_density;	// 画素の垂直方向密度
-	short	colorDepth;	// １画素当たりのbit数
-	#ifdef _WIN64
-	  char	dummy[2]; // アラインメント
-	#endif
-	HLOCAL	hInfo;	// 画像内のテキスト情報
-} SUSIE_PICTUREINFO;
+// flag 定義
+#define SUSIE_SOURCE_MASK 7
+#define SUSIE_SOURCE_DISK 0
+#define SUSIE_SOURCE_MEM 1
+#define SUSIE_SOURCE_IGNORECASE 0x80
+#define SUSIE_DEST_MASK 0x700
+#define SUSIE_DEST_DISK 0
+#define SUSIE_DEST_MEM 0x100
+#define SUSIE_DEST_REJECT_UNKNOWN_TYPE 0x800
+#define SUSIE_DEST_EXTRA_OPTION 0x1000
 
-typedef struct {
-	unsigned char method[8];	// 圧縮法の種類
-	ULONG_PTR	position;	// ファイル上での位置
-	ULONG_PTR	compsize;	// 圧縮されたサイズ
-	ULONG_PTR	filesize;	// 元のファイルサイズ
-	susie_time_t	timestamp;	// ファイルの更新日時
-	char	path[200];	// 相対パス
-	char	filename[200];	// ファイル名
-	unsigned long	crc;	// CRC
-	#ifdef _WIN64
-	   // 64bit版の構造体サイズは444bytesですが、実際のサイズは
-	   // アラインメントにより448bytesになります。環境によりdummyが必要です。
-	   char	dummy[4];
-	#endif
-} SUSIE_FINFO;
-#pragma pack(pop)
-
-typedef struct {
-	unsigned char	method[8];		// 圧縮法の種類
-	ULONG_PTR	position;		// ファイル上での位置
-	ULONG_PTR	compsize;		// 圧縮されたサイズ
-	ULONG_PTR	filesize;		// 元のファイルサイズ
-	susie_time_t	timestamp;		// ファイルの更新日時
-	WCHAR	path[200];		// 相対パス
-	WCHAR	filename[200];	// ファイルネーム
-	unsigned long	crc;			// CRC
-}SUSIE_FINFOW;
+// その他定義
+#define SUSIE_CHECK_SIZE (2 * 1024)
+#define SUSIE_PATH_MAX 200
 
 // コールバック
 typedef int (__stdcall *SUSIE_PROGRESS)(int nNum, int nDenom, LONG_PTR lData);
+
+// Susie 用の UNIX 時刻
+typedef ULONG_PTR susie_time_t;
+
+// 書庫関係構造体
+#pragma pack(push, 1)
+typedef struct {
+	unsigned char  method[8];  // 圧縮法の種類
+	ULONG_PTR      position;   // ファイル上での位置
+	ULONG_PTR      compsize;   // 圧縮されたサイズ
+	ULONG_PTR      filesize;   // 元のファイルサイズ
+	susie_time_t   timestamp;  // ファイルの更新日時
+	char           path[SUSIE_PATH_MAX]; // 相対パス
+	char           filename[SUSIE_PATH_MAX]; // ファイル名
+	unsigned long  crc; // CRC
+	#ifdef _WIN64
+	   // 64bit版の構造体サイズは444bytesですが、実際のサイズは
+	   // アラインメントにより448bytesになります。環境によりdummyが必要です。
+	   char dummy[4];
+	#endif
+} SUSIE_FINFO;
+
+typedef struct {
+	unsigned char  method[8]; // 圧縮法の種類
+	ULONG_PTR      position;  // ファイル上での位置
+	ULONG_PTR      compsize;  // 圧縮されたサイズ
+	ULONG_PTR      filesize;  // 元のファイルサイズ
+	susie_time_t   timestamp; // ファイルの更新日時
+	WCHAR          path[SUSIE_PATH_MAX]; // 相対パス
+	WCHAR          filename[SUSIE_PATH_MAX]; // ファイル名
+	unsigned long  crc; // CRC
+#ifdef _WIN64
+	   // 64bit版の構造体サイズは844bytesですが、実際のサイズは
+	   // アラインメントにより848bytesになります。環境によりdummyが必要です。
+	char dummy[4]; // アラインメント
+#endif
+} SUSIE_FINFOW;
+#pragma pack(pop)
 
 // リソース関連の定義 ---------------------------------------------------------
 #pragma pack(push, 1)
@@ -86,96 +97,60 @@ typedef struct {
 	WORD idCount;
 	ICONDIRENTRY idEntries[1];
 } ICONDIR;
-
-typedef struct {
-	BYTE bWidth;
-	BYTE bHeight;
-	BYTE bColorCount;
-	BYTE bReserved;
-	WORD wPlanes;
-	WORD wBitCount;
-	DWORD dwBytesInRes;
-	WORD ImageID;
-} ICONRESDIRENTRY;
-
-typedef struct {
-	WORD idReserved;
-	WORD idType;
-	WORD idCount;
-	ICONRESDIRENTRY idEntries[1];
-} ICONRESDIR;
-
-// NE ファイルのリソース
-typedef struct {
-	 WORD rnOffset;
-	 WORD rnLength;
-	 WORD rnFlags;
-	 WORD rnID;
-	 WORD rnHandle;
-	 WORD rnUsage;
-} NAMEINFO;
-
-typedef struct { // ID １つ分の情報
-	 WORD rtTypeID;
-	 WORD rtResourceCount;
-	 DWORD rtReserved;
-	 NAMEINFO rtNameInfo[1]; // 各リソースの情報
-} TYPEINFO;
 #pragma pack(pop)
-
 
 const char RiffHeader[4] = {'R', 'I', 'F', 'F'};
 const char ACONHeader[4] = {'A', 'C', 'O', 'N'};
 
 // ----------------------------------------------------------------------------
 typedef struct {
-	SUSIE_FINFO *first, *infos, *max;
+	SUSIE_FINFOW *first, *infos, *max;
 	DWORD allocsize;
-	BOOL UseCache;
+	BOOL UseCache; // cache mode の為、メモリ解放を禁止するかどうか
 } SUSIEINFOLIST;
 
 void InitSusieInfoList(SUSIEINFOLIST &sil)
 {
-	sil.allocsize = 4 * sizeof(SUSIE_FINFO);
-	sil.first = (SUSIE_FINFO *)HeapAlloc(GetProcessHeap(), 0, sil.allocsize);
+	sil.allocsize = 4 * sizeof(SUSIE_FINFOW);
+	sil.first = (SUSIE_FINFOW *)HeapAlloc(GetProcessHeap(), 0, sil.allocsize);
 	if ( sil.first == NULL ){ // 確保失敗
 		sil.infos = sil.max = NULL;
 		sil.allocsize = 0;
 	}else{
 		sil.infos = sil.first;
-		sil.max = (SUSIE_FINFO *)(BYTE *)((BYTE *)sil.first + sil.allocsize);
+		sil.max = (SUSIE_FINFOW *)(BYTE *)((BYTE *)sil.first + sil.allocsize);
 	}
 	sil.UseCache = FALSE;
 }
 
-SUSIE_FINFO *CheckSizeSusieInfoList(SUSIEINFOLIST &sil)
+SUSIE_FINFOW *CheckSizeSusieInfoList(SUSIEINFOLIST &sil)
 {
-	SUSIE_FINFO *newinfos;
+	SUSIE_FINFOW *newinfos;
 
 	if ( sil.infos < sil.max ) return sil.infos++;
-	newinfos = (SUSIE_FINFO *)HeapReAlloc(GetProcessHeap(), 0, sil.first, sil.allocsize * 2);
+	newinfos = (SUSIE_FINFOW *)HeapReAlloc(GetProcessHeap(), 0, sil.first, sil.allocsize * 2);
 	if ( newinfos == NULL ) return NULL;
 	sil.allocsize *= 2;
 	sil.infos = newinfos + (sil.infos - sil.first);
 	sil.first = newinfos;
-	sil.max = (SUSIE_FINFO *)(BYTE *)((BYTE *)newinfos + sil.allocsize);
+	sil.max = (SUSIE_FINFOW *)(BYTE *)((BYTE *)newinfos + sil.allocsize);
 	return sil.infos++;
 }
 
 void EndListSusieInfoList(SUSIEINFOLIST &sil)
 {
 	DWORD size;
-	SUSIE_FINFO *newinfos;
+	SUSIE_FINFOW *newinfos;
 
 	if ( sil.first == NULL ) return;
-	size = ((BYTE *)sil.infos - (BYTE *)sil.first) + sizeof(SUSIE_FINFO);
-	newinfos = (SUSIE_FINFO *)HeapReAlloc(GetProcessHeap(), 0, sil.first, size);
+	size = ((BYTE *)sil.infos - (BYTE *)sil.first) + sizeof(SUSIE_FINFOW);
+	newinfos = (SUSIE_FINFOW *)HeapReAlloc(GetProcessHeap(), 0, sil.first, size);
 	if ( newinfos == NULL ){
 		if ( sil.infos != sil.first ) sil.infos--;
 	}else{
 		sil.allocsize = size;
 		sil.first = newinfos;
-		sil.max = (SUSIE_FINFO *)(BYTE *)((BYTE *)sil.first + size);
+		sil.max = (SUSIE_FINFOW *)(BYTE *)((BYTE *)sil.first + size);
 		sil.infos = sil.max - 1;
 	}
 	sil.infos->method[0] = '\0';
@@ -185,7 +160,7 @@ void EndListSusieInfoList(SUSIEINFOLIST &sil)
 void FreeSusieInfoList(SUSIEINFOLIST &sil)
 {
 	if ( sil.first == NULL ) return;
-	if ( sil.UseCache != FALSE ) return;
+	if ( sil.UseCache != FALSE ) return; // cache mode なので解放しない
 	HeapFree(GetProcessHeap(), 0, sil.first);
 }
 
@@ -220,12 +195,12 @@ DWORD USEFASTCALL GetBigEndDWORD(void *ptr)
 struct {
 	SUSIEINFOLIST sil;
 	WCHAR filename[MAX_PATH];
-} CachedInfo = {{NULL, NULL, NULL, 0}, L""};
+	DWORD ThreadID;
+} CachedInfo = {{NULL, NULL, NULL, 0}, L"", 0};
 /*-----------------------------------------------------------------------------
 	dll の初期化／終了処理
 -----------------------------------------------------------------------------*/
-#pragma argsused
-BOOL WINAPI DLLEntry(HINSTANCE hInst, DWORD reason, LPVOID reserved)
+BOOL WINAPI DLLEntry(HINSTANCE, DWORD reason, LPVOID)
 {
 	switch (reason){
 		// DLL 初期化 ---------------------------------------------------------
@@ -235,6 +210,7 @@ BOOL WINAPI DLLEntry(HINSTANCE hInst, DWORD reason, LPVOID reserved)
 
 		// DLL の終了処理 -----------------------------------------------------
 		case DLL_PROCESS_DETACH:
+			CachedInfo.sil.UseCache = FALSE;
 			FreeSusieInfoList(CachedInfo.sil);
 			break;
 	}
@@ -246,7 +222,7 @@ BOOL WINAPI DLLEntry(HINSTANCE hInst, DWORD reason, LPVOID reserved)
 #define InfoCount 8
 const char *InfoText[InfoCount] = {
 	"00AM",
-	"Cursor / Icon Susie Plug-in 1.2 (c)2017,2018 TORO",
+	"Cursor / Icon Susie Plug-in 1.3 (c)2017-2025 TORO",
 	"*.ANI",
 	"Animated cursor",
 	"*.CUR",
@@ -255,7 +231,6 @@ const char *InfoText[InfoCount] = {
 	"Icon"
 };
 
-#pragma argsused
 extern "C" int __stdcall GetPluginInfo(int infono, LPSTR buf, int buflen)
 {
 	const char *src, *srcmax;
@@ -294,9 +269,10 @@ extern "C" int __stdcall GetPluginInfoW(int infono, LPWSTR buf, int buflen)
 	return len - 1;
 }
 //-----------------------------------------------------------------------------
-extern "C" int __stdcall IsSupportedW(LPCWSTR filename, void *dw)
+extern "C" int __stdcall IsSupportedW(LPCWSTR filename, const void *dw)
 {
-	BYTE buf[2 * 1024], *header;
+	BYTE buf[SUSIE_CHECK_SIZE];
+	const BYTE *header;
 
 	if ( (CachedInfo.sil.first != NULL) &&
 		 (filename != NULL) &&
@@ -306,14 +282,15 @@ extern "C" int __stdcall IsSupportedW(LPCWSTR filename, void *dw)
 	}
 
 	if ( (DWORD_PTR)dw & ~(DWORD_PTR)0xffff ){ // 2K メモリイメージ
-		header = (BYTE *)dw;
+		header = (const BYTE *)dw;
 	}else{ // ファイルハンドル
 		DWORD size;
 
+		buf[0] = '\1'; // ファイルサイズが 0 の時、誤判定しないようなデータ
 		if ( ReadFile((HANDLE)dw, buf, sizeof(buf), &size, NULL) == FALSE ){
 			return 0; // 読み込み失敗
 		}
-		header = (BYTE *)buf;
+		header = (const BYTE *)buf;
 	}
 	// ファイル内容による判別
 	// .ani
@@ -329,38 +306,54 @@ extern "C" int __stdcall IsSupportedW(LPCWSTR filename, void *dw)
 	return 0;
 }
 
-#pragma argsused
-extern "C" int __stdcall IsSupported(LPCSTR filename, void *dw)
+extern "C" int __stdcall IsSupported(LPCSTR, const void *dw)
 {
 	return IsSupportedW(NULL, dw);
 }
 
 //-----------------------------------------------------------------------------
-extern "C" int __stdcall GetArchiveInfoLocal(LPCSTR buf, LONG_PTR len, unsigned int flag, SUSIEINFOLIST &sil)
+extern "C" int __stdcall GetArchiveInfoLocal(const char *buf, LONG_PTR len, unsigned int flag, SUSIEINFOLIST &sil, BOOL unicode)
 {
 	HANDLE hFile;
 	DWORD sizeL, sizeH;		// ファイルの大きさ
-	WCHAR filenameW[MAX_PATH];
-	DWORD iconid = 1;
 	char *image, *imgptr, *imgmax;
+	DWORD ThreadID;
+	DWORD result;
+	WCHAR filenameW[MAX_PATH];
 	DWORD *seqptr = NULL;
+	DWORD_PTR frame_rate = 0, frame_time = 0;
+	DWORD iconid = 1;
 
-	switch ( flag & 7 ){
-		case 0: // filename
-			// キャッシュがあるなら利用する
-			AnsiToUnicode(buf, filenameW, MAX_PATH);
+	ThreadID = GetCurrentThreadId();
+	switch ( flag & SUSIE_SOURCE_MASK ){
+		case SUSIE_SOURCE_DISK:
+			// キャッシュ用ファイル名を用意
+			if ( unicode ){
+				wcsncpy(filenameW, (const WCHAR *)buf, MAX_PATH);
+			}else{
+				AnsiToUnicode(buf, filenameW, MAX_PATH);
+			}
 			filenameW[MAX_PATH - 1] = '\0';
+
+			// キャッシュがあるなら利用する
 			if ( (CachedInfo.sil.first != NULL) &&
+				 (CachedInfo.ThreadID == ThreadID) &&
 				 !wcscmp(CachedInfo.filename, filenameW) ){
 				sil = CachedInfo.sil;
-				sil.UseCache = TRUE;
+				// sil.UseCache = TRUE; すでに TRUE
 				return SUSIEERROR_NOERROR;
 			}
 
 			// ファイルから読み込む
-			hFile = CreateFile(buf, GENERIC_READ,
-					FILE_SHARE_WRITE | FILE_SHARE_READ,
-					NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+			if ( unicode ){
+				hFile = CreateFileW((const WCHAR *)buf, GENERIC_READ,
+						FILE_SHARE_WRITE | FILE_SHARE_READ,
+						NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+			}else{
+				hFile = CreateFileA(buf, GENERIC_READ,
+						FILE_SHARE_WRITE | FILE_SHARE_READ,
+						NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+			}
 			if ( hFile == INVALID_HANDLE_VALUE ) return SUSIEERROR_FAULTREAD;
 			sizeL = GetFileSize(hFile, &sizeH);
 			if ( sizeH || (sizeL >= 0xffff0000) ) return SUSIEERROR_EMPTYMEMORY;
@@ -370,23 +363,29 @@ extern "C" int __stdcall GetArchiveInfoLocal(LPCSTR buf, LONG_PTR len, unsigned 
 				CloseHandle(hFile);
 				return SUSIEERROR_EMPTYMEMORY;
 			}
-			{
-				DWORD result;
-				result = ReadFile(hFile, image, sizeL, &sizeL, NULL) ?
-						NO_ERROR : GetLastError();
-				CloseHandle(hFile);
-				if ( (result != NO_ERROR) ||
-					 !(!memcmp(image, "\0\0\1", 4) ||
-					   !memcmp(image, "\0\0\2", 4) ||
-					   (!memcmp(image, RiffHeader, sizeof(RiffHeader)) &&
-						!memcmp(image + 8, ACONHeader, sizeof(ACONHeader)))) ){
-					HeapFree(GetProcessHeap(), 0, image);
-					return SUSIEERROR_FAULTREAD;
-				}
+			if ( len != 0 ){
+				LONG high;
+				#ifdef _WIN64
+					high = len >> 32;
+				#else
+					high = 0;
+				#endif
+				SetFilePointer(hFile, (DWORD)len, &high, FILE_BEGIN);
+			}
+			result = ReadFile(hFile, image, sizeL, &sizeL, NULL) ?
+					NO_ERROR : GetLastError();
+			CloseHandle(hFile);
+			if ( (result != NO_ERROR) ||
+				 !(!memcmp(image, "\0\0\1", 4) ||
+				   !memcmp(image, "\0\0\2", 4) ||
+				   (!memcmp(image, RiffHeader, sizeof(RiffHeader)) &&
+					!memcmp(image + 8, ACONHeader, sizeof(ACONHeader)))) ){
+				HeapFree(GetProcessHeap(), 0, image);
+				return SUSIEERROR_FAULTREAD;
 			}
 			break;
 
-		case 1: // memory
+		case SUSIE_SOURCE_MEM:
 			image = (char *)buf;
 			if ( !(!memcmp(image, "\0\0\1", 4) ||
 					   !memcmp(image, "\0\0\2", 4) ||
@@ -405,14 +404,14 @@ extern "C" int __stdcall GetArchiveInfoLocal(LPCSTR buf, LONG_PTR len, unsigned 
 	InitSusieInfoList(sil);
 	if ( (memcmp(image, "\0\0\1", 4) == 0) || (memcmp(image, "\0\0\2", 4) == 0) ){
 		ICONDIRENTRY *idir;
-		SUSIE_FINFO *infos;
+		SUSIE_FINFOW *infos;
 		DWORD icons, left;
-		const char *nameformat;
+		const WCHAR *nameformat;
 
 		idir = ((ICONDIR *)image)->idEntries;
 		left = ((ICONDIR *)image)->idCount;
 		icons = left + 1;
-		nameformat = image[2] == 1 ? "%03d(%dx%d-%d).ico" : "%03d(%dx%d-%d).cur";
+		nameformat = image[2] == 1 ? L"%03d(%dx%d-%d).ico" : L"%03d(%dx%d-%d).cur";
 		for ( ; left != 0 ; left--, idir++ ){
 			int ColorCount;
 			DWORD offset;
@@ -425,7 +424,7 @@ extern "C" int __stdcall GetArchiveInfoLocal(LPCSTR buf, LONG_PTR len, unsigned 
 			}else{
 				ColorCount = idir->bColorCount ;
 			}
-			wsprintf(infos->filename, nameformat,
+			wsprintfW(infos->filename, nameformat,
 					icons - left, idir->bWidth, idir->bHeight, ColorCount);
 			infos->crc = infos->position = idir->dwImageOffset;
 			infos->compsize = idir->dwBytesInRes;
@@ -436,7 +435,7 @@ extern "C" int __stdcall GetArchiveInfoLocal(LPCSTR buf, LONG_PTR len, unsigned 
 			if ( (idir->bWidth == 0) &&
 				 (sizeL > (DWORD_PTR)(offset + 0x40)) &&
 				 (memcmp((BYTE *)image + offset + 12, "IHDR", 4) == 0) ){
-				wsprintf(infos->filename, nameformat,
+				wsprintfW(infos->filename, nameformat,
 						icons - left,
 						GetBigEndDWORD( (BYTE *)image + offset + 16 ),
 						GetBigEndDWORD( (BYTE *)image + offset + 20 ),
@@ -467,19 +466,26 @@ extern "C" int __stdcall GetArchiveInfoLocal(LPCSTR buf, LONG_PTR len, unsigned 
 				datasize = *(DWORD *)(frameptr + 4);
 				if ( ((frameptr + 8 + datasize) <= (framemax + 8) ) &&
 					 !memcmp(frameptr, "icon", 4) ){
-					SUSIE_FINFO *infos;
+					SUSIE_FINFOW *infos;
 
 					if ( NULL == (infos = CheckSizeSusieInfoList(sil)) ) break;
-					wsprintf(infos->filename, "raw%03d.cur", iconid++);
-					strcpy(infos->path, "raw\\");
+					wsprintfW(infos->filename, L"raw%03d.cur", iconid++);
+					wcscpy(infos->path, L"raw\\");
 					infos->position = iconid;
 					infos->compsize = infos->filesize = datasize;
-					infos->timestamp = 0;
+					infos->timestamp = frame_time;
 					strcpy((char *)infos->method, "anicur");
 					infos->crc = (frameptr + 8) - image;
 					iconid++;
+					frame_time += frame_rate;
 				}
 				frameptr += datasize + 8;
+			}
+		}else if ( !memcmp(imgptr, "anih", 4) ){
+			DWORD frame_count = *(DWORD *)(BYTE *)(imgptr + 0x10); // dwSteps
+			if ( frame_count > 1 ){
+				frame_rate = (DWORD_PTR)*(DWORD *)(BYTE *)(imgptr + 0x24); // dwDefaultRate(1/60s)
+				if ( frame_rate == 0 ) frame_rate = 2;
 			}
 		}
 		imgptr += chunksize + 8;
@@ -493,11 +499,11 @@ extern "C" int __stdcall GetArchiveInfoLocal(LPCSTR buf, LONG_PTR len, unsigned 
 		}
 		seqptr++;
 		while ( seqptr <= seqmax ){
-			SUSIE_FINFO *infos;
+			SUSIE_FINFOW *infos;
 			DWORD id;
 
 			if ( NULL == (infos = CheckSizeSusieInfoList(sil)) ) break;
-			wsprintf(infos->filename, "%03d.cur", seqid);
+			wsprintfW(infos->filename, L"%03d.cur", seqid);
 			id = *seqptr++;
 			if ( id < iconid ){
 				infos->position = iconid + seqid;
@@ -517,20 +523,21 @@ last:
 	EndListSusieInfoList(sil);
 	if ( hFile != NULL ) HeapFree(GetProcessHeap(), 0, image);
 
-	if ( (flag & 7) == 0 ){ // filename のときは、キャッシュする
+	if ( (flag & SUSIE_SOURCE_MASK) == SUSIE_SOURCE_DISK ){ // filename のときは、キャッシュする
+		CachedInfo.ThreadID = ThreadID;
 		wcscpy(CachedInfo.filename, filenameW);
-		CachedInfo.sil = sil;
 		sil.UseCache = TRUE;
+		CachedInfo.sil = sil;
 	}
 	return SUSIEERROR_NOERROR;
 }
 
-extern "C" int __stdcall GetArchiveInfo(LPCSTR buf, LONG_PTR len, unsigned int flag, HLOCAL *lphInf)
+extern "C" int __stdcall GetArchiveInfoW(LPCWSTR buf, LONG_PTR len, unsigned int flag, HLOCAL *lphInf)
 {
 	int result;
 	SUSIEINFOLIST sil;
 
-	result = GetArchiveInfoLocal(buf, len, flag, sil);
+	result = GetArchiveInfoLocal((const char *)buf, len, flag, sil, TRUE);
 	if ( result != SUSIEERROR_NOERROR ){
 		*lphInf = NULL;
 		return result;
@@ -540,22 +547,72 @@ extern "C" int __stdcall GetArchiveInfo(LPCSTR buf, LONG_PTR len, unsigned int f
 	return SUSIEERROR_NOERROR;
 }
 
-extern "C" int __stdcall GetFile(LPCSTR src, LONG_PTR len, LPSTR dest, unsigned int flag, SUSIE_PROGRESS progressCallback, LONG_PTR lData)
+extern "C" int __stdcall GetArchiveInfo(LPCSTR buf, LONG_PTR len, unsigned int flag, HLOCAL *lphInf)
+{
+	int result;
+	SUSIEINFOLIST sil;
+	HLOCAL hImage;
+
+	result = GetArchiveInfoLocal(buf, len, flag, sil, FALSE);
+	if ( result != SUSIEERROR_NOERROR ){
+		*lphInf = NULL;
+		return result;
+	}
+
+	if ( sil.first == NULL ){
+		hImage = NULL;
+	} else{ // SUSIE_FINFOW → SUSIE_FINFO 変換
+		int infocount;
+		int i;
+		SUSIE_FINFO *infosA;
+		SUSIE_FINFOW *infosW;
+
+		infocount = sil.allocsize / sizeof(SUSIE_FINFOW);
+		hImage = LocalAlloc(0, infocount * sizeof(SUSIE_FINFO));
+		if ( hImage == NULL ){
+			*lphInf = NULL;
+			return SUSIEERROR_EMPTYMEMORY;
+		}
+
+		infosA = (SUSIE_FINFO *)LocalLock(hImage);
+		infosW = sil.first;
+
+		for ( i = 0; i < infocount; i++ ){
+			memcpy(infosA, infosW, (8 * sizeof(unsigned char)) + (sizeof(ULONG_PTR) * 3) + sizeof(susie_time_t));
+			UnicodeToAnsi(infosW->path, infosA->path, SUSIE_PATH_MAX);
+			infosA->path[SUSIE_PATH_MAX - 1] = '\0';
+			UnicodeToAnsi(infosW->filename, infosA->filename, SUSIE_PATH_MAX);
+			infosA->filename[SUSIE_PATH_MAX - 1] = '\0';
+			infosA->crc = infosW->crc;
+			infosA++;
+			infosW++;
+		}
+		LocalUnlock(hImage);
+	}
+	*lphInf = hImage;
+	return SUSIEERROR_NOERROR;
+}
+
+int __stdcall GetFileLocal(LPCSTR src, LONG_PTR len, LPSTR dest, unsigned int flag, SUSIE_PROGRESS progressCallback, LONG_PTR lData, BOOL unicode)
 {
 	SUSIEINFOLIST sil;
-	SUSIE_FINFO *infos;
+	SUSIE_FINFOW *infos;
 	char *bin;
 	HANDLE hFile;
 	DWORD header = 0;
 	HLOCAL himage = NULL;
 	int result;
 
-	if ( ((flag & 0x700) > 0x100) || (flag & 7) ) return SUSIEERROR_NOTSUPPORT;
-	result = GetArchiveInfoLocal(src, len, flag, sil);
+	if ( ((flag & SUSIE_DEST_MASK) > SUSIE_DEST_MEM) ||
+		 ((flag & SUSIE_SOURCE_MASK) > SUSIE_SOURCE_MEM) ){
+		return SUSIEERROR_NOTSUPPORT;
+	}
+	result = GetArchiveInfoLocal(src, len, flag, sil, unicode);
 	if ( result != SUSIEERROR_NOERROR ) return result;
-	if ( progressCallback != NULL ) progressCallback(0, 100, lData);
 
+	if ( progressCallback != NULL ) progressCallback(0, 100, lData);
 	infos = sil.first;
+
 	while( infos->method[0] != '\0' ){
 		if ( infos->position != len ){
 			infos++;
@@ -569,21 +626,27 @@ extern "C" int __stdcall GetFile(LPCSTR src, LONG_PTR len, LPSTR dest, unsigned 
 		if ( himage == NULL ) break;
 		bin = (char *)LocalLock(himage);
 
-		if ( (flag & 7) == 0 ){
+		if ( (flag & SUSIE_SOURCE_MASK) == SUSIE_SOURCE_DISK ){
 			DWORD temp;
 
-			hFile = CreateFile(src, GENERIC_READ,
-					FILE_SHARE_WRITE | FILE_SHARE_READ,
-					NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+			if ( unicode ){
+				hFile = CreateFileW((const WCHAR *)src, GENERIC_READ,
+						FILE_SHARE_WRITE | FILE_SHARE_READ,
+						NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+			}else{
+				hFile = CreateFileA(src, GENERIC_READ,
+						FILE_SHARE_WRITE | FILE_SHARE_READ,
+						NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+			}
 			if ( hFile == INVALID_HANDLE_VALUE ) break;
 			temp = 0;
 			if ( SetFilePointer(hFile, infos->crc, (PLONG)&temp, FILE_BEGIN) != 0xffffffff ){
 				ReadFile(hFile, bin + header, infos->compsize, &temp, NULL);
-				if ( temp != (infos->compsize) ) temp = 0;
+				if ( temp != infos->compsize ) temp = 0;
 			}
 			CloseHandle(hFile);
 			if ( temp == 0 ) break;
-		}else{
+		}else{ // SUSIE_SOURCE_MEM
 			if ( infos->compsize > (DWORD)len ) break;
 			memcpy(bin + header, (const char *)src + infos->crc, infos->compsize);
 		}
@@ -614,16 +677,26 @@ extern "C" int __stdcall GetFile(LPCSTR src, LONG_PTR len, LPSTR dest, unsigned 
 		}
 
 		result = SUSIEERROR_NOERROR;
-		if ( (flag & 0x700) ){ // メモリ
+		if ( flag & SUSIE_DEST_MASK ){ // SUSIE_DEST_MEM
 			LocalUnlock(himage);
 			*(HLOCAL *)dest = himage;
-		}else{ // file
+		}else{ // SUSIE_DEST_DISK
 			HANDLE hDestFile;
-			TCHAR destpath[MAX_PATH];
 
-			wsprintf(destpath, T("%s\\%s"), dest, infos->filename);
-			hDestFile = CreateFile(destpath, GENERIC_WRITE, 0, NULL,
-					CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+			if ( unicode ){
+				WCHAR destpathW[MAX_PATH];
+
+				wsprintfW(destpathW, L"%s\\%s", (WCHAR *)dest, infos->filename);
+				hDestFile = CreateFileW(destpathW, GENERIC_WRITE, 0, NULL,
+						CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+			}else{
+				char filenameA[MAX_PATH];
+				char destpathA[MAX_PATH];
+				UnicodeToAnsi(infos->filename, filenameA, MAX_PATH);
+				wsprintfA(destpathA, "%s\\%s", dest, filenameA);
+				hDestFile = CreateFileA(destpathA, GENERIC_WRITE, 0, NULL,
+						CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+			}
 			if ( hDestFile != INVALID_HANDLE_VALUE ){
 				DWORD size;
 
@@ -650,27 +723,39 @@ extern "C" int __stdcall GetFile(LPCSTR src, LONG_PTR len, LPSTR dest, unsigned 
 	return SUSIEERROR_FAULTREAD;
 }
 
-extern "C" int __stdcall GetFileInfo(LPCSTR buf, LONG_PTR len, LPCSTR filename, unsigned int flag, SUSIE_FINFO *lpInfo)
+extern "C" int __stdcall GetFile(LPCSTR src, LONG_PTR len, LPSTR dest, unsigned int flag, SUSIE_PROGRESS progressCallback, LONG_PTR lData)
 {
-	SUSIE_FINFO *infos;
+	return GetFileLocal(src, len, dest, flag, progressCallback, lData, FALSE);
+}
+
+extern "C" int __stdcall GetFileW(LPCWSTR src, LONG_PTR len, LPWSTR dest, unsigned int flag, SUSIE_PROGRESS progressCallback, LONG_PTR lData)
+{
+	return GetFileLocal((const char *)src, len, (char *)dest, flag, progressCallback, lData, TRUE);
+}
+
+int __stdcall GetFileInfoLocal(const char *buf, LONG_PTR len, LPCWSTR filename, unsigned int flag, SUSIE_FINFOW *lpInfo, BOOL unicode)
+{
+	SUSIE_FINFOW *infos;
 	SUSIEINFOLIST sil;
 	int result;
 
-	result = GetArchiveInfoLocal(buf, len, flag, sil);
+	result = GetArchiveInfoLocal(buf, len, flag, sil, unicode);
 	if ( result != SUSIEERROR_NOERROR ) return result;
 
 	for ( infos = sil.first ; infos->method[0] != '\0' ; infos++ ){
 		#if 0 // dir なし
-		if ( stricmp(infos->filename, filename) != 0 ) continue;
+		if ( stricmpW(infos->filename, filename) != 0 ) continue;
 		#else // dir あり
 		if ( infos->path[0] == '\0' ){
-			if ( stricmp(infos->filename, filename) != 0 ) continue;
+			if ( stricmpW(infos->filename, filename) != 0 ) continue;
 		}else{
-			int pathlen = strlen(infos->path);
+			int pathlen = wcslen(infos->path);
 
-			if ( memicmp(infos->path, filename, pathlen) != 0 ) continue;
+			if ( memicmp(infos->path, filename, pathlen * sizeof(WCHAR)) != 0 ){
+				continue;
+			}
 			while ( filename[pathlen] == '\\' ) pathlen++;
-			if ( stricmp(infos->filename, filename + pathlen) != 0 ) continue;
+			if ( stricmpW(infos->filename, filename + pathlen) != 0 ) continue;
 		}
 		#endif
 		*lpInfo = *infos;
@@ -679,4 +764,29 @@ extern "C" int __stdcall GetFileInfo(LPCSTR buf, LONG_PTR len, LPCSTR filename, 
 	}
 	FreeSusieInfoList(sil);
 	return SUSIEERROR_NOTSUPPORT;
+}
+
+extern "C" int __stdcall GetFileInfo(LPCSTR buf, LONG_PTR len, LPCSTR filename, unsigned int flag, SUSIE_FINFO *lpInfo)
+{
+	WCHAR filenameW[SUSIE_PATH_MAX];
+	int result;
+	SUSIE_FINFOW infosW;
+
+	AnsiToUnicode(filename, filenameW, SUSIE_PATH_MAX);
+	filenameW[SUSIE_PATH_MAX - 1] = '\0';
+	result = GetFileInfoLocal(buf, len, filenameW, flag, &infosW, FALSE);
+	if ( result != SUSIEERROR_NOERROR ) return result;
+
+	memcpy(lpInfo, &infosW, (8 * sizeof(unsigned char)) + (sizeof(ULONG_PTR) * 3) + sizeof(susie_time_t));
+	UnicodeToAnsi(infosW.path, lpInfo->path, SUSIE_PATH_MAX);
+	lpInfo->path[SUSIE_PATH_MAX - 1] = '\0';
+	UnicodeToAnsi(infosW.filename, lpInfo->filename, SUSIE_PATH_MAX);
+	lpInfo->filename[SUSIE_PATH_MAX - 1] = '\0';
+	lpInfo->crc = infosW.crc;
+	return SUSIEERROR_NOERROR;
+}
+
+extern "C" int __stdcall GetFileInfoW(LPCWSTR buf, LONG_PTR len, LPCWSTR filename, unsigned int flag, SUSIE_FINFOW *lpInfo)
+{
+	return GetFileInfoLocal((char *)buf, len, filename, flag, lpInfo, TRUE);
 }

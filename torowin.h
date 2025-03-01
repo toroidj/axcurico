@@ -579,7 +579,7 @@ typedef union {
 	#define strlwr CharLowerA
 //	#define ImmAssociateContext(hWnd, hIMC) // 定義されていない
 #endif
-#ifdef __ms_va_list // wine で変更されている va_list
+#if defined(WINEGCC) && (WINEGCC < 900) // wine で変更されている va_list
 	#define t_va_list __ms_va_list
 	#define t_va_start __ms_va_start
 	#define t_va_end __ms_va_end
@@ -592,15 +592,23 @@ typedef union {
 #endif
 
 // Win64
-#if 1 // 現在のWin64 は 64bit pointer をフルに使用していない
-	#define PTRMAX64 0x00000fffffffffff
-	#define PTRUSERMAX64 0x0000080000000000
+#if 1 // PML4 現在のWin64 は 64bit pointer をフルに使用していない
+	#define PTRMAX64     0x0000ffffffffffff
+	#define PTRUSERMAX64 0x0000800000000000
 	#define PTR64SHORT
 	#define PTRLEN64 12
+	#define MEMPAGESIZE 4096 // 4K,4M(PSE)
 #else
-	#define PTRMAX64 0xffffffffffffffff
-	#define PTRUSERMAX64 0x8000000000000000
-	#define PTRLEN64 16
+	#if 1 // PML5(Ice Lake, serverのみ)
+		#define PTRMAX64     0x01ffffffffffffff
+		#define PTRUSERMAX64 0x0100000000000000
+		#define PTRLEN64 15
+	#else
+		#define PTRMAX64     0xffffffffffffffff
+		#define PTRUSERMAX64 0x8000000000000000
+		#define PTRLEN64 16
+	#endif
+	#define MEMPAGESIZE 4096 // 4K,2M,1G
 #endif
 #define PTRPRINTFORMAT64 "%I64X" // "%p" だと、行頭 0 付きになる
 #define PTRPRINTFORMAT32 "%X" // "%p"

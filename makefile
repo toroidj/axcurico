@@ -162,9 +162,9 @@ CODE$(TAIL).OBJ:
 #------------------------------------------------------------------------------
 $(name).$(spi):	$(name).obj
 !if $(UseBCC)
-  $(linkdll) $(C0DLL) $&,$<,$*,NOEH32 IMPORT32 CW32,$&
+  $(linkdll) $(C0DLL) $&,$<,$*,NOEH32 IMPORT32 CW32,susieax
 !else
-  $(linkdll) $(C0DLL) /DEF:$&.DEF $& /OUT:$&.$(spi)
+  $(linkdll) $(C0DLL) /DEF:susieax.def $& /OUT:$&.$(spi)
 !endif
 
 $(name).obj: $(name).cpp

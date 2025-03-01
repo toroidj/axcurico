@@ -1,7 +1,7 @@
 @echo off
 set RETAIL=1
 rem *** set value ***
-set arcname=axcuri12.zip
+set arcname=axcuri13.zip
 set readme=axcurico.txt
 set srcname=axcursrc.7z
 

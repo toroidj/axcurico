@@ -27,7 +27,15 @@
 		#define BITSTRING "x86"
 	#endif
 #endif
+#ifndef _INTEGRAL_MAX_BITS
+	#ifdef _WIN64
+		#define _INTEGRAL_MAX_BITS 64
+	#else
+		#define _INTEGRAL_MAX_BITS 32
+	#endif
+#endif
 
+#define EX_LITTLE_ENDIAN	// リトルエンディアンに依存した記述の印
 //--------------------------------------------------------- 定数
 #define MAKE_WINTYPE(OSversion) (((OSversion).dwMajorVersion << 16) | (WORD)(OSversion).dwMinorVersion)
 //#define WINTYPE_95	0x40000
@@ -75,7 +83,7 @@
 #define PBiH	0x40000		// 1PiB(high dword)
 #define MAX16	0xffff
 #define MAX32	0xffffFFFF
-#ifdef _WIN64
+#if _INTEGRAL_MAX_BITS >= 64
 	#define MAX64	0xffffFFFFffffFFFF
 #endif
 #define BADPTR ((void *)(DWORD_PTR)-1)
@@ -262,7 +270,7 @@
 	#define tWinMain	wWinMain
 	#define tstrlen(ptr)	strlenW(ptr)
 	#define tstrcpy(dst, src)	strcpyW((dst), (src))
-	#define tstrcpypart(str1, str2, len)	{memcpy((char *)(WCHAR *)(str1), (const char *)(const WCHAR *)(str2), (len) * sizeof(WCHAR));*((WCHAR *)(str1) + len) = '\0';}
+	#define tstrcpypart(str1, str2, len)	{memcpy((char *)(WCHAR *)(str1), (const char *)(const WCHAR *)(str2), (len) * sizeof(WCHAR));*((WCHAR *)(str1) + (len)) = '\0';}
 	#define tstpcpy(dst, src)	stpcpyW((dst), (src))
 	#define tstrcat(dst, src)	strcatW((dst), (src))
 	#define tstrcmp(str1, str2)	strcmpW((str1), (str2))
@@ -297,7 +305,7 @@
 	#define tWinMain	WinMain
 	#define tstrlen(ptr)	strlen(ptr)
 	#define tstrcpy(dst, src)	strcpy((dst), (src))
-	#define tstrcpypart(str1, str2, len)	{memcpy((str1), (str2), (len));*((char *)(str1) + len) = '\0';}
+	#define tstrcpypart(str1, str2, len)	{memcpy((str1), (str2), (len));*((char *)(str1) + (len)) = '\0';}
 	#define tstpcpy(dst, src)	stpcpyA((dst), (src))
 	#define tstrcat(dst, src)	strcat((dst), (src))
 	#define tstrcmp(str1, str2)	strcmp((str1), (str2))
@@ -350,14 +358,14 @@
 #define Utf8ToUnicode(utf8, unicode, destsize) MultiByteToWideChar(CP_UTF8, 0, (utf8), -1, (unicode), (destsize))
 #define UnicodeToUtf8(unicode, utf8, destsize) WideCharToMultiByte(CP_UTF8, 0, (unicode), -1, (utf8), (destsize), NULL, NULL)
 
-#define TNL		T("\r\n")
+#define TNL T("\r\n")
 #define DefineToStr(def) DefineToStr2(def) // 定数定義を文字列にする
 #define DefineToStr2(def) #def
 
 //-------------------------------------------------------- BCC/CL
 #ifdef __BORLANDC__		// Boland 用定義
 	#define USEFASTCALL _fastcall
-	#define DLLEntry WINAPI DllEntryPoint
+	#define DllMain DllEntryPoint
 	#define UnUsedParam(param)
 	#define UNIONNAME(name, type) name.DUMMYUNIONNAME.type
 	#define UNIONNAME2(name, type) name.DUMMYUNIONNAME2.type
@@ -366,17 +374,17 @@
 #else
 	#ifdef __GNUC__		// gcc 用定義
 		#define UnUsedParam(param)
-	#else
-				   // Microsoft 用定義
-	#define UnUsedParam(param) UNREFERENCED_PARAMETER(param)
+	#else				// Microsoft 用定義
+		#define UnUsedParam(param) UNREFERENCED_PARAMETER(param)
+	#endif
+	#define USEFASTCALL __fastcall
+	#define UNIONNAME(name, type) name.type
+	#define UNIONNAME2(name, type) name.type
+	#define UNIONNAME3(name, type) name.type
+	#define UNIONNAME0(name, type) name.type
 #endif
-#define USEFASTCALL __fastcall
-#define DLLEntry APIENTRY DllMain
-#define UNIONNAME(name, type) name.type
-#define UNIONNAME2(name, type) name.type
-#define UNIONNAME3(name, type) name.type
-#define UNIONNAME0(name, type) name.type
-#endif
+#define DLLEntry DllMain
+
 #define USECDECL __cdecl
 //-------------------------------------------------------- MinGW 対策用
 // SDK と異なる定義があるヘッダの対策
@@ -390,11 +398,11 @@
 typedef DWORD ERRORCODE;	// Win32API のエラーコード(GetLastError)
 #define IsTrue(form)	((form) != FALSE)
 #define IsFalse(form)	((form) == FALSE)
-#define setflag(flag, bit)	flag |= (bit)			//	特定フラグを立てる
-#define resetflag(flag, bit)	flag &= ~(bit)			//	特定フラグを下げる
+#define setflag(flag, bit)	flag |= (bit)  // 特定フラグを立てる
+#define resetflag(flag, bit)	flag &= ~(bit)  // 特定フラグを下げる
 #ifndef max
-	#define max(a, b) (((a) > (b)) ? (a) : (b))	//	大きいほうを返す
-	#define min(a, b) (((a) < (b)) ? (a) : (b))	//	小さいほうを返す
+	#define max(a, b) (((a) > (b)) ? (a) : (b))  // 大きいほうを返す
+	#define min(a, b) (((a) < (b)) ? (a) : (b))  // 小さいほうを返す
 #endif
 #define LPARAMtoPOINT(pos, lParam) {(pos).x=(int)(short)LOWORD(lParam);(pos).y=(int)(short)HIWORD(lParam);}
 #define GetMessagePosPoint(pos) {DWORD dpos = GetMessagePos();LPARAMtoPOINT((pos), (dpos));}
@@ -412,15 +420,15 @@ typedef DWORD ERRORCODE;	// Win32API のエラーコード(GetLastError)
 #define CharUPR(chr)	{if (Islower(chr)) (chr) -= (BYTE)0x20;}
 
 typedef union {
-	struct { // エンディアン注意
+	EX_LITTLE_ENDIAN struct {
 		DWORD LowPart;
 		LONG HighPart;
 	} u;
-	struct { // エンディアン注意
+	EX_LITTLE_ENDIAN struct {
 		DWORD L;
 		LONG H;
 	} s;
-#ifdef _WIN64
+#if _INTEGRAL_MAX_BITS >= 64
 	__int64 QuadPart;
 	__int64 HL;
 #endif
@@ -428,15 +436,15 @@ typedef union {
 } INTHL;
 
 typedef union {
-	struct { // エンディアン注意
+	EX_LITTLE_ENDIAN struct {
 		DWORD LowPart;
 		DWORD HighPart;
 	} u;
-	struct { // エンディアン注意
+	EX_LITTLE_ENDIAN struct {
 		DWORD L;
 		DWORD H;
 	} s;
-#ifdef _WIN64
+#if _INTEGRAL_MAX_BITS >= 64
 	unsigned __int64 QuadPart;
 	unsigned __int64 HL;
 #endif
@@ -451,7 +459,7 @@ typedef union {
 // ↑ dstL -= srcL;dstL + srcL;if ( C flag ) dstH--; と最適化される
 // #  dstL -= srcL;if ( C flag ) dstH--; と最適化されると嬉しいのだが(^^;
 
-#ifdef _WIN64
+#if _INTEGRAL_MAX_BITS >= 64
 	#define LetHL_0(dstIntHL) {(dstIntHL).QuadPart = 0;}
 	#define LetHLHL(dstIntHL, srcIntHL) {(dstIntHL).QuadPart = (srcIntHL).QuadPart;}
 	#define AddHLHL(dstIntHL, srcIntHL) {(dstIntHL).QuadPart += (srcIntHL).QuadPart;}
@@ -462,13 +470,13 @@ typedef union {
 	// WIN32_FIND_DATA / WIN32_FILE_ATTRIBUTE_DATA / BY_HANDLE_FILE_INFORMATION の nFileSize 操作用
 	// ※ nFileSize は nFileSizeHigh , nFileSizeLow の順に配置されている
 	#define AddMaskedFilesize(dstIntHL, Fsize, andL, addL)\
-		{(dstIntHL).HL += ((size_t)((Fsize).nFileSizeLow) + ((size_t)(Fsize).nFileSizeHigh << 32) + (size_t)(addL)) & (size_t)(andL);}
+		{(dstIntHL).HL += ((__int64)((Fsize).nFileSizeLow) + ((__int64)(Fsize).nFileSizeHigh << 32) + (__int64)(addL)) & (__int64)(andL);}
 
 	#define AddHLFilesize(dstIntHL, Fsize)\
-		{(dstIntHL).QuadPart += (size_t)(Fsize).nFileSizeLow + ((size_t)(Fsize).nFileSizeHigh << 32);}
+		{(dstIntHL).QuadPart += (__int64)(Fsize).nFileSizeLow + ((__int64)(Fsize).nFileSizeHigh << 32);}
 
 	#define SubHLFilesize(dstIntHL, Fsize)\
-		{(dstIntHL).QuadPart -= (size_t)(Fsize).nFileSizeLow + ((size_t)(Fsize).nFileSizeHigh << 32);}
+		{(dstIntHL).QuadPart -= (__int64)(Fsize).nFileSizeLow + ((__int64)(Fsize).nFileSizeHigh << 32);}
 #else
 	#define LetHL_0(dstIntHL) {(dstIntHL).u.LowPart = (dstIntHL).u.HighPart = 0;}
 	#define LetHLHL(dstIntHL, srcIntHL) {(dstIntHL) = (srcIntHL);}
